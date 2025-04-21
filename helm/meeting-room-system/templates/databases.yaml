@@ -1,0 +1,191 @@
+{{- if .Values.databases.userDb.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: user-db-pvc
+  namespace: {{ .Values.global.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.databases.userDb.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-db
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: user-db
+  template:
+    metadata:
+      labels:
+        app: user-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:13
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          value: user_service_db
+        ports:
+        - containerPort: 5432
+        resources:
+{{ toYaml .Values.databases.userDb.resources | indent 10 }}
+        volumeMounts:
+        - name: user-db-data
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: user-db-data
+        persistentVolumeClaim:
+          claimName: user-db-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-db
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: user-db
+  ports:
+  - port: 5432
+    targetPort: 5432
+{{- end }}
+
+{{- if .Values.databases.roomDb.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: room-db-pvc
+  namespace: {{ .Values.global.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.databases.roomDb.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: room-db
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: room-db
+  template:
+    metadata:
+      labels:
+        app: room-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:13
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          value: room_service_db
+        ports:
+        - containerPort: 5432
+        resources:
+{{ toYaml .Values.databases.roomDb.resources | indent 10 }}
+        volumeMounts:
+        - name: room-db-data
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: room-db-data
+        persistentVolumeClaim:
+          claimName: room-db-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: room-db
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: room-db
+  ports:
+  - port: 5432
+    targetPort: 5432
+{{- end }}
+
+{{- if .Values.databases.reservationDb.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: reservation-db-pvc
+  namespace: {{ .Values.global.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.databases.reservationDb.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reservation-db
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: reservation-db
+  template:
+    metadata:
+      labels:
+        app: reservation-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:13
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          value: reservation_service_db
+        ports:
+        - containerPort: 5432
+        resources:
+{{ toYaml .Values.databases.reservationDb.resources | indent 10 }}
+        volumeMounts:
+        - name: reservation-db-data
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: reservation-db-data
+        persistentVolumeClaim:
+          claimName: reservation-db-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reservation-db
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: reservation-db
+  ports:
+  - port: 5432
+    targetPort: 5432
+{{- end }}

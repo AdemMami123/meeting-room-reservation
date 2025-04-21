@@ -1,0 +1,128 @@
+# Default values for meeting-room-system
+global:
+  namespace: meeting-room-system
+  
+  # Docker image registry and repository settings
+  imageRegistry: ""  # If set, used as default registry for all images
+  imageRepository: "ademmami"  # Docker Hub username
+  imageTag: "latest"  # Default image tag to use
+  
+  # Kubernetes resource configuration
+  resources:
+    small:
+      limits:
+        cpu: 250m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+    medium:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+
+# Database configurations
+databases:
+  userDb:
+    enabled: true
+    size: "1Gi"
+    resources: 
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 200m
+        memory: 256Mi
+  roomDb:
+    enabled: true
+    size: "1Gi"
+    resources: 
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 200m
+        memory: 256Mi
+  reservationDb:
+    enabled: true
+    size: "1Gi"
+    resources: 
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 200m
+        memory: 256Mi
+
+# Kafka and Zookeeper configuration
+kafka:
+  enabled: true
+  replicas: 1
+  resources: 
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+zookeeper:
+  enabled: true
+  resources: 
+    limits:
+      cpu: 300m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+# Microservices configuration
+userService:
+  enabled: true
+  replicas: 2
+  image: "user-service"
+  port: 5000
+  resources: "${global.resources.small}"
+  
+roomService:
+  enabled: true
+  replicas: 2
+  image: "room-service"
+  port: 5001
+  resources: "${global.resources.small}"
+  
+reservationService:
+  enabled: true
+  replicas: 2
+  image: "reservation-service"
+  port: 5002
+  resources: "${global.resources.small}"
+
+# Ingress Controller configuration
+ingressController:
+  enabled: true
+  image: "k8s.gcr.io/ingress-nginx/controller"
+  imageTag: "v1.2.0"
+  resources: 
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  service:
+    type: LoadBalancer
+
+# Secret configuration (You should use sealed secrets in production)
+secrets:
+  jwt:
+    secretKey: "placeholder-jwt-secret-key-replace-in-production"
+  googleOAuth:
+    clientId: "placeholder-google-client-id"
+    clientSecret: "placeholder-google-client-secret"
+    adminEmails: "admin@example.com"
+  postgres:
+    password: "postgres"  # Replace with secure password in production

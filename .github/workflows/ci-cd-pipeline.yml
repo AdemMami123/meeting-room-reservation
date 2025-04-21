@@ -1,0 +1,154 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  REGISTRY: docker.io
+  REPOSITORY: ademmami
+  KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_DATA }}
+
+jobs:
+  # Test application code
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          cd meeting-room-res-system-api/user-service
+          pip install -r requirements.txt
+          pip install pytest
+          cd ../room-service
+          pip install -r requirements.txt
+          cd ../reservation-service
+          pip install -r requirements.txt
+          
+      - name: Run tests
+        run: |
+          cd meeting-room-res-system-api
+          # Add pytest commands when tests are available
+          echo "Running tests..."
+          # pytest user-service/tests/
+          # pytest room-service/tests/
+          # pytest reservation-service/tests/
+
+  # Build and push Docker images
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: test
+    if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+      
+      - name: Extract metadata
+        id: meta
+        run: echo "::set-output name=version::$(date +'%Y%m%d%H%M%S')"
+      
+      - name: Build and push user-service
+        uses: docker/build-push-action@v4
+        with:
+          context: ./meeting-room-res-system-api/user-service
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/user-service:latest
+            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/user-service:${{ steps.meta.outputs.version }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.REPOSITORY }}/user-service:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.REPOSITORY }}/user-service:buildcache,mode=max
+      
+      - name: Build and push room-service
+        uses: docker/build-push-action@v4
+        with:
+          context: ./meeting-room-res-system-api/room-service
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/room-service:latest
+            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/room-service:${{ steps.meta.outputs.version }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.REPOSITORY }}/room-service:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.REPOSITORY }}/room-service:buildcache,mode=max
+      
+      - name: Build and push reservation-service
+        uses: docker/build-push-action@v4
+        with:
+          context: ./meeting-room-res-system-api/reservation-service
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/reservation-service:latest
+            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/reservation-service:${{ steps.meta.outputs.version }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.REPOSITORY }}/reservation-service:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.REPOSITORY }}/reservation-service:buildcache,mode=max
+      
+      # Pass the version to the next job
+      - name: Set version output
+        id: version
+        run: echo "version=${{ steps.meta.outputs.version }}" >> $GITHUB_OUTPUT
+
+  # Deploy to Kubernetes using Helm
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+      
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.10.0'
+      
+      - name: Configure Kubernetes
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ env.KUBE_CONFIG }}" | base64 --decode > $HOME/.kube/config
+          kubectl config use-context mycluster
+          
+      - name: Update Helm values with new image tags
+        run: |
+          VERSION=${{ needs.build-and-push.outputs.version }}
+          cd helm/meeting-room-system
+          
+          # Use yq to update values.yaml
+          # Note: You may need to install yq or use sed if yq is not available
+          # Update image tags in values.yaml
+          yq e ".global.imageTag = \"${VERSION}\"" -i values.yaml
+          
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install meeting-room-system ./helm/meeting-room-system \
+            --namespace meeting-room-system \
+            --create-namespace \
+            --values ./helm/meeting-room-system/values.yaml \
+            --set secrets.jwt.secretKey="${{ secrets.JWT_SECRET_KEY }}" \
+            --set secrets.googleOAuth.clientId="${{ secrets.GOOGLE_CLIENT_ID }}" \
+            --set secrets.googleOAuth.clientSecret="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+            --set secrets.googleOAuth.adminEmails="${{ secrets.GOOGLE_ADMIN_EMAILS }}" \
+            --set secrets.postgres.password="${{ secrets.POSTGRES_PASSWORD }}"
+            
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n meeting-room-system
+          echo "Deployment completed successfully!"
