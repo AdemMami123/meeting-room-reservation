@@ -1,0 +1,225 @@
+---
+# User Database PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: user-db-pvc
+  namespace: meeting-room-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Room Database PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: room-db-pvc
+  namespace: meeting-room-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Reservation Database PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: reservation-db-pvc
+  namespace: meeting-room-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# User Database Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-db
+  namespace: meeting-room-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-db
+  template:
+    metadata:
+      labels:
+        app: user-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:14-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: postgres-password
+        - name: POSTGRES_DB
+          value: user_db
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: user-db-data
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+      volumes:
+      - name: user-db-data
+        persistentVolumeClaim:
+          claimName: user-db-pvc
+---
+# Room Database Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: room-db
+  namespace: meeting-room-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: room-db
+  template:
+    metadata:
+      labels:
+        app: room-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:14-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: postgres-password
+        - name: POSTGRES_DB
+          value: room_db
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: room-db-data
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+      volumes:
+      - name: room-db-data
+        persistentVolumeClaim:
+          claimName: room-db-pvc
+---
+# Reservation Database Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reservation-db
+  namespace: meeting-room-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reservation-db
+  template:
+    metadata:
+      labels:
+        app: reservation-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:14-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: postgres-password
+        - name: POSTGRES_DB
+          value: reservation_db
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: reservation-db-data
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+      volumes:
+      - name: reservation-db-data
+        persistentVolumeClaim:
+          claimName: reservation-db-pvc
+---
+# User Database Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-db-service
+  namespace: meeting-room-system
+spec:
+  selector:
+    app: user-db
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+# Room Database Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: room-db-service
+  namespace: meeting-room-system
+spec:
+  selector:
+    app: room-db
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+# Reservation Database Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: reservation-db-service
+  namespace: meeting-room-system
+spec:
+  selector:
+    app: reservation-db
+  ports:
+  - port: 5432
+    targetPort: 5432
