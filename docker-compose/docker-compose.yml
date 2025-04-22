@@ -12,7 +12,7 @@ services:
     volumes:
       - user-db-data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5435:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -29,7 +29,7 @@ services:
     volumes:
       - room-db-data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "5436:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -46,7 +46,7 @@ services:
     volumes:
       - reservation-db-data:/var/lib/postgresql/data
     ports:
-      - "5434:5432"
+      - "5437:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -105,6 +105,11 @@ services:
     ports:
       - "5000:5000"
     restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     
   room-service:
     build:
@@ -122,6 +127,11 @@ services:
     ports:
       - "5001:5001"
     restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   reservation-service:
     build:
@@ -139,6 +149,11 @@ services:
     ports:
       - "5002:5002"
     restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   user-db-data:
